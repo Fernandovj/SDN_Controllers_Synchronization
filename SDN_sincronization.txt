@@ -1,0 +1,19 @@
+Descrete-event simulation
+
+Topology:
+
+The whole topology is divided into domains, each controller belongs to one domain only
+
+
+
+Events:
+
+- Sincronization. Controller has limited number of sincronizations per step (sinc budget = 1)
+- Flow table Intallation: NO
+- Traffic simulation (init and end): at each step,  all link weights are updated by using a X distribution
+- Path calculation: simulated by reading a file containg src-dst
+
+
+Final step: n steps
+
+Time-step Reward: APC all-to-all or a predefined list  of src-dst (in src domain and dst domain)
