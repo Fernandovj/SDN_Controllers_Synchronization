@@ -78,7 +78,7 @@ class Sim:
 
     def run(self):
         while self.horario<self.run_till:
-            #self.print_eventos()
+            self.print_eventos()
             proximo = self.get_proximo_evento()
             if proximo==None:
                 return    
