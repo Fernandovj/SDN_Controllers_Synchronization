@@ -24,8 +24,7 @@ class Sim:
         self.total_events = 0
         self.horario = 0
         self.run_till = -1
-
-        #metrics
+        #metrics:
         self.APC = 0 #average path cost
         self.xtime = 0                    
 
@@ -50,16 +49,13 @@ class Sim:
             else: 
                 return self.binary_search(arr, mid+1, r, x)   
         else:             
-            return l
-
+           i return l
 
     def add_event(self, evt):        
         request = {}
         #encontrar indice y adicionar evt en esa posicion
         index = self.binary_search(self.eventos, 0, len(self.eventos)-1, evt.inicio)
         self.eventos = self.eventos[:index] + [evt] + self.eventos[index:] 
-
-
 
     def print_eventos(self):
         print("HORARIO: ",self.horario,"\nTotal Eventos:",len(self.eventos))
@@ -75,14 +71,12 @@ class Sim:
             self.horario = p.inicio
             return p
 
-
     def run(self):
         while self.horario<self.run_till:
             self.print_eventos()
             proximo = self.get_proximo_evento()
             if proximo==None:
-                return    
-
+                return   
             proximo.function(self,proximo)
 
 

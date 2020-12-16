@@ -8,16 +8,24 @@ import random
 import topologies as tp
 
 def update_weights(controllers,new_weights): 
-#receives a list of controllers and a list of new weights
+#This function receives a list of controllers and a list of new weights
 #to update the link weights in their corresponding domains 
-	print("")
-	
+
 	for c in controllers:
 		links_list = c.network.topology.graph["links"]
 		for i in range(len(links_list)):
 			if links_list[i]["domain"] == c.domain:
-				links_list[i]["weight"] = new_weights[i] 
+				links_list[i]["weight"] = new_weights[i]
 
+def sync(controller_X,controller_Y): 
+#This function receives two controllers (X and Y) to update X's network view with Y's domain network view
+	
+	links_X = controller_X.network.topology.graph["links"]
+	links_Y = controller_Y.network.topology.graph["links"]
+	
+	for i in range(len(links_Y)):
+		if links_Y[i]["domain"] == controller_Y.domain:
+			links_X[i]["weight"] = links_Y[i]["weight"] 	 
 
 
 class Network(object):
@@ -41,13 +49,9 @@ ctlr_E = Controller("E")
 new_weights = []
 for link_index in range(33):
 	new_weight = random.randint(0,100)
+	#print(link_index,new_weight)
 	new_weights.append(new_weight)
-	print(link_index,new_weight)
-
-
-#ctlr_A.network.topology.graph["links"][0]["weight"] = 1
-#print(ctlr_A.network.topology.graph["links"][0])
-
+	
 #if ctlr_A.network.topology.graph == ctlr_B.network.topology.graph:
 #	print("yes")
 #else:
@@ -57,7 +61,10 @@ update_weights([ctlr_A,ctlr_B,ctlr_C,ctlr_D,ctlr_E],new_weights)
 print(ctlr_A.network.topology.graph["links"])
 print(ctlr_B.network.topology.graph["links"])
 
-
+sync(ctlr_A,ctlr_B)
+print()
+print(ctlr_A.network.topology.graph["links"])
+print(ctlr_B.network.topology.graph["links"])
 
 
 
