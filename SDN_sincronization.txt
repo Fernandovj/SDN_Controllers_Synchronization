@@ -8,7 +8,7 @@ The whole topology is divided into domains, each controller belongs to one domai
 
 Events:
 
-- Sincronization. Controller has limited number of sincronizations per step (sinc budget = 1)
+- Sincronization. Controller has limited number of sincronizations per step (sync budget = 1)
 - Flow table Intallation: NO
 - Traffic simulation (init and end): at each step,  all link weights are updated by using a X distribution
 - Path calculation: simulated by reading a file containg src-dst
