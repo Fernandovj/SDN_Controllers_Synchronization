@@ -9,7 +9,9 @@ import topologies as tp
 
 WEIGHTS_CHANGE_TIME = 1
 SYNC_TIME = 2
-
+action_space = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
+#each of the four variables in the state representation can take 11 values (0-10)
+n_state_space = 11**4
 
 
 def get_state(controller):
@@ -37,8 +39,7 @@ def get_reward(controller,real_net):
             #print(path)
             path_cost_A = nx.shortest_path_length(G, source =src, target= dst,weight="weight")#costo visto por controller A
             #print("path_cost_A:",path_cost_A)
-            
-            
+                       
             #calculate real path cost
             path_cost=0 
             for i in range(len(path)-1):
@@ -55,9 +56,10 @@ def get_reward(controller,real_net):
     return np.mean(path_cost_list)
     
 def get_new_weights():
+    #This functions generates new weights for the links according to a distribution 
     new_weights = []
     for link_index in range(33):
-        new_weight = random.randint(0,100) #usar una distribucion
+        new_weight = random.randint(0,100) 
         #print(link_index,new_weight)
         new_weights.append(new_weight)
     return new_weights

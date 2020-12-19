@@ -1,6 +1,6 @@
 # main.py 
 
-
+import random
 import gym 
 import numpy as np 
 import sdnc_sync_env 
@@ -15,7 +15,7 @@ env = sdnc_sync_env
 
 # Defining all the required parameters 
 epsilon = 0.1
-total_episodes = 1
+total_episodes = 3
 max_steps = 100
 alpha = 0.5
 gamma = 1
@@ -24,7 +24,8 @@ gamma = 1
 	the reward by each algorithm 
 """
 episodeReward = 0
-totalReward = { 
+totalReward = {
+	'silly':[], 
 	'SarsaAgent': [], 
 	'QLearningAgent': [], 
 	'ExpectedSarsaAgent': [] 
@@ -44,7 +45,8 @@ totalReward = {
 # Now we run all the episodes and calculate the reward obtained by 
 # each agent at the end of the episode 
 
-
+print("action_space:",env.action_space)
+print("state_space size:",env.n_state_space)
 
 for _ in range(total_episodes): 
 	# Initialize the necesary parameters before 
@@ -53,17 +55,17 @@ for _ in range(total_episodes):
 	state1 = env.reset() 
 	print("first_state:",state1)
 	#action1 = agent.choose_action(state1)
-	action1 = [1,0,0,0] 
+	action1 = random.choice(env.action_space) 
 	episodeReward = 0
 	while t < max_steps: 
 
 	# 	# Getting the next state, reward, and other parameters 
 
 		state2, reward, done, info = env.step(action1)
-		print("t:",t,"next_state:",state2,"reward:",reward)
+		print("t:",t+1,"next_state:",state2,"reward:",round(reward))
 	# 	# Choosing the next action 
 	# 	action2 = agent.choose_action(state2) 
-		action2 = [0,1,0,0]
+		action2 = random.choice(env.action_space)
 		
 	# 	# Learning the Q-value 
 	 	#agent.update(state1, state2, reward, action1, action2)
@@ -72,7 +74,7 @@ for _ in range(total_episodes):
 		
 	# 	# Updating the respective vaLues 
 		t += 1
-	# 	episodeReward += reward 
+		episodeReward += reward 
 		
 	# 	# If at the end of learning process 
 		if done:
@@ -81,7 +83,8 @@ for _ in range(total_episodes):
 
 
 	# Append the sum of reward at the end of the episode 
-	#totalReward[type(agent).__name__].append(episodeReward) 
+	#totalReward[type(agent).__name__].append(episodeReward)
+	totalReward["silly"].append(round(episodeReward,2)) 
 #env.close() 
 
 
@@ -96,3 +99,4 @@ for _ in range(total_episodes):
 #print(f"SARSA Average Sum of Reward: {meanReturn['SARSA-Agent']}") 
 #print(f"Q-Learning Average Sum of Return: {meanReturn['Q-Learning-Agent']}") 
 #print(f"Expected Sarsa Average Sum of Return: {meanReturn['Expected-SARSA-Agent']}") 
+print(totalReward)
