@@ -7,17 +7,29 @@ import topologies as tp
 from networkx import json_graph
 
 WEIGHTS_CHANGE_TIME = 1
-SYNC_TIME = 10
+SYNC_TIME = 2
+#arrival_rates = [32, 64, 18, 51, 32, 27, 27, 56, 74, 30, 67, 61, 52, 78, 53, 80, 80, 14, 22, 34, 15, 38, 19, 73, 57, 68, 70, 79, 70, 44, 36, 34, 77]
+arrival_rates = [32, 64, 18, 51, 34, 56, 94, 93, 94, 90, 97, 91, 92, 98, 53, 80, 80, 14, 22, 34, 15, 38, 19, 73, 57, 68, 70, 79, 70, 44, 36, 34, 77]
 action_space = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
 #each of the four variables in the state representation can take 11 values (0-10)
 n_state_space = 11**4
+
+def to_index(state):
+    '''
+    returns state index from a given state
+    '''
+
+    index = state[0]*11*11*11 + state[1]*11*11 + state[2]*11 + state[3]
+
+    return int(index)
 
 
 def get_state(controller):
     #This function returns the current state of the environment
     #i.e., the desynchronization time slots of controller A with respect to the others 
-    print("****get_state")
-    return controller.desync_list
+    #print("****get_state")
+
+    return to_index(controller.desync_list)
 
 
 def get_reward(controller,real_net):
@@ -26,7 +38,7 @@ def get_reward(controller,real_net):
     #path cost is the sum of the weights in the links composing the path
     #print("get_reward")
     path_cost_list = [] 
-
+    difference = []
     G = nx.node_link_graph(controller.network.topology.graph) 
     #print(json_graph.node_link_data(G)["links"])
     real_links = real_net.topology.graph["links"]
@@ -35,7 +47,7 @@ def get_reward(controller,real_net):
     for src in range(4):
         for dst in range(4,23):
             path = nx.shortest_path(G, source = src, target = dst, weight="weight")#con la vista del controlador A
-            print(path)
+            #print(path, end="- ")
             #path_cost_A = nx.shortest_path_length(G, source =src, target= dst,weight="weight")#costo visto por controller A
             
             path_cost_A = 0 #costo visto por controller A
@@ -44,8 +56,8 @@ def get_reward(controller,real_net):
                 for l in controller.network.topology.graph["links"]:
                     if (l["source"] == path[i] and l["target"] == path[i+1]) or (l["source"] == path[i+1] and l["target"] == path[i]):
                         path_cost_A += l["weight"]
-            print("path_cost_A:",path_cost_A)
-                       
+            #print("path_cost_A:",path_cost_A, end="- ")
+                                   
             #calculate real path cost
             path_cost=0 
             for i in range(len(path)-1):
@@ -55,16 +67,16 @@ def get_reward(controller,real_net):
                         path_cost += l["weight"]
             
             
-
-            print("Real path cost:",path_cost)
-            
+            #print("real path cost:",path_cost)            
             path_cost_list.append(path_cost)
-
+            difference.append(abs(path_cost-path_cost_A))
+            #print("dif:",abs(path_cost-path_cost_A))
     #print(np.mean(path_cost_list))
-    return np.mean(path_cost_list)
+    #return np.mean(path_cost_list)
+    return np.mean(difference)
     
 #def get_new_weights():
-    #This function generates new weights for the links according to a distribution 
+    #This function generates new weights for the links according to a uniform distribution 
 #    new_weights = []
 #    for link_index in range(33):
 #        new_weight = random.randint(0,100) 
@@ -73,11 +85,8 @@ def get_reward(controller,real_net):
 #    return new_weights
 
 def get_new_weights():
-    #This function generates new weights for the links according to a distribution 
+    #This function generates new weights for the links according to a poisson distribution 
     new_weights = []
-    arrival_rates = []
-    for link_index in range(33):
-        arrival_rates.append(random.randint(10,80))
 
     for i in arrival_rates:
         new_weights.append(np.random.poisson(lam=i,size=1))    
@@ -105,9 +114,7 @@ def update_weights(controllers, real_net, new_weights = get_new_weights()):
                 links_list[i]["weight"] = new_weights[i]
 
 
-        #the count of desync time slots is carried out
-        for i in range(len(controllers[j].desync_list)):
-            controllers[j].desync_list[i] += 1
+        
     
 def sync(controller_X,controller_Y): 
     #This function receives two controllers (X and Y) to update X's network view with Y's domain network view
@@ -244,7 +251,10 @@ class Simulation:
                 next_event.function(self,next_event)
 
             else:
-
+                #the count of desync time slots is carried out
+                for j in range(len(self.controllers)):
+                    for i in range(len(self.controllers[j].desync_list)):
+                        self.controllers[j].desync_list[i] += 1
                 return get_state(self.controllers[0]) 
 
                
@@ -268,7 +278,10 @@ class Simulation:
                 next_event.function(self,next_event)
 
             else:
-                
+                #the count of desync time slots is carried out
+                for j in range(len(self.controllers)):
+                    for i in range(len(self.controllers[j].desync_list)):
+                        self.controllers[j].desync_list[i] += 1
                 return get_state(self.controllers[0])
 
 
@@ -286,15 +299,16 @@ def get_src_dst():
 
 def func_update_weights(sim, evt): #modify weights in links according to a distribution
     
-    print("change_weights function")
+    #print("change_weights function")
     update_weights(sim.controllers,sim.network)
     sim.add_event(sim.create_event(tipo="weights_change",inicio=sim.horario+WEIGHTS_CHANGE_TIME, extra={}, f=func_update_weights))
 
 
-def func_synchronize(sim, evt,action):
+def func_synchronize(sim, evt, action):
     #It is time for syncronization event, controller A will decide which of the other controllers to syncronize with     
-    print("synchronize function")
-    index=action.index(1)
+    #print("synchronize function")
+    a = action_space[action]
+    index=a.index(1)
     
     sync(sim.controllers[0],sim.controllers[index+1])      
     
@@ -316,7 +330,7 @@ def reset():
     global sim 
     sim = None
     sim = Simulation()
-    sim.set_run_till(30)
+    sim.set_run_till(60)
     init_sim(sim) 
     first_state = sim.run()
     return first_state
@@ -325,27 +339,28 @@ def step(action):
     global sim
     next_state = sim.step(action)
     reward = get_reward(sim.controllers[0],sim.network)
-    done = True if sim.horario>=sim.run_till else False
+    done = True if (sim.horario>=sim.run_till) or (10 in sim.controllers[0].desync_list) else False
     print("hora:",sim.horario)
-    info = ""
+    APC = reward # ****** cambiar
+    info = {"APC":APC}
     return next_state, reward, done, info
 
 
 
 
-sim = Simulation()
-sim.set_run_till(60)
-print(sim.network.topology.graph["links"])
-print()
-print(sim.controllers[0].network.topology.graph["links"])
-print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
-update_weights(sim.controllers,sim.network)
-print(sim.network.topology.graph["links"])
-print()
-print(sim.controllers[0].network.topology.graph["links"])
-print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
-sync(sim.controllers[0],sim.controllers[1])
-print(sim.network.topology.graph["links"])
-print()
-print(sim.controllers[0].network.topology.graph["links"])
-print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
+# sim = Simulation()
+# sim.set_run_till(60)
+# print(sim.network.topology.graph["links"])
+# print()
+# print(sim.controllers[0].network.topology.graph["links"])
+# print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
+# update_weights(sim.controllers,sim.network)
+# print(sim.network.topology.graph["links"])
+# print()
+# print(sim.controllers[0].network.topology.graph["links"])
+# print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
+# sync(sim.controllers[0],sim.controllers[1])
+# print(sim.network.topology.graph["links"])
+# print()
+# print(sim.controllers[0].network.topology.graph["links"])
+# print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
