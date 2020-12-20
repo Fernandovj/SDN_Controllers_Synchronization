@@ -3,12 +3,11 @@ import random
 import time
 import networkx as nx
 import numpy as np
-
 import topologies as tp
-
+from networkx import json_graph
 
 WEIGHTS_CHANGE_TIME = 1
-SYNC_TIME = 2
+SYNC_TIME = 10
 action_space = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
 #each of the four variables in the state representation can take 11 values (0-10)
 n_state_space = 11**4
@@ -29,16 +28,23 @@ def get_reward(controller,real_net):
     path_cost_list = [] 
 
     G = nx.node_link_graph(controller.network.topology.graph) 
-    #print(json_graph.node_link_data(G))
+    #print(json_graph.node_link_data(G)["links"])
     real_links = real_net.topology.graph["links"]
     #print("real_links",real_links)
 
     for src in range(4):
         for dst in range(4,23):
             path = nx.shortest_path(G, source = src, target = dst, weight="weight")#con la vista del controlador A
-            #print(path)
-            path_cost_A = nx.shortest_path_length(G, source =src, target= dst,weight="weight")#costo visto por controller A
-            #print("path_cost_A:",path_cost_A)
+            print(path)
+            #path_cost_A = nx.shortest_path_length(G, source =src, target= dst,weight="weight")#costo visto por controller A
+            
+            path_cost_A = 0 #costo visto por controller A
+            for i in range(len(path)-1):
+                #links.append([path[i],path[i+1]])
+                for l in controller.network.topology.graph["links"]:
+                    if (l["source"] == path[i] and l["target"] == path[i+1]) or (l["source"] == path[i+1] and l["target"] == path[i]):
+                        path_cost_A += l["weight"]
+            print("path_cost_A:",path_cost_A)
                        
             #calculate real path cost
             path_cost=0 
@@ -49,24 +55,38 @@ def get_reward(controller,real_net):
                         path_cost += l["weight"]
             
             
-            #print("Real path cost:",path_cost)
+
+            print("Real path cost:",path_cost)
+            
             path_cost_list.append(path_cost)
 
     #print(np.mean(path_cost_list))
     return np.mean(path_cost_list)
     
-def get_new_weights():
-    #This functions generates new weights for the links according to a distribution 
-    new_weights = []
-    for link_index in range(33):
-        new_weight = random.randint(0,100) 
+#def get_new_weights():
+    #This function generates new weights for the links according to a distribution 
+#    new_weights = []
+#    for link_index in range(33):
+#        new_weight = random.randint(0,100) 
         #print(link_index,new_weight)
-        new_weights.append(new_weight)
+#        new_weights.append(new_weight)
+#    return new_weights
+
+def get_new_weights():
+    #This function generates new weights for the links according to a distribution 
+    new_weights = []
+    arrival_rates = []
+    for link_index in range(33):
+        arrival_rates.append(random.randint(10,80))
+
+    for i in arrival_rates:
+        new_weights.append(np.random.poisson(lam=i,size=1))    
+
     return new_weights
 
-def update_weights(controllers,real_net): 
 
-    new_weights = get_new_weights()
+
+def update_weights(controllers, real_net, new_weights = get_new_weights()):     
 
     #update weights in "real network"
     real_links = real_net.topology.graph["links"]
@@ -80,7 +100,8 @@ def update_weights(controllers,real_net):
         links_list = controllers[j].network.topology.graph["links"]
         for i in range(len(links_list)):
             
-            if links_list[i]["domain"] == controllers[j].domain or links_list[i]["domain"] == (str(controllers[j].domain)+str(controllers[j+1].domain if j+1<len(controllers) else "")):
+            if (links_list[i]["domain"] == controllers[j].domain) or (links_list[i]["domain"] == (str(controllers[j].domain)+str(controllers[j+1].domain if j+1<len(controllers) else ""))):
+                #print("controlador:",j,"i",i)
                 links_list[i]["weight"] = new_weights[i]
 
 
@@ -94,8 +115,10 @@ def sync(controller_X,controller_Y):
     links_X = controller_X.network.topology.graph["links"]
     links_Y = controller_Y.network.topology.graph["links"]
     
+
     for i in range(len(links_Y)):
-        if links_Y[i]["domain"] == controller_Y.domain:
+        if links_Y[i]["domain"] == controller_Y.domain or links_Y[i]["domain"] == controller_Y.interdomain:#  or links_Y[i]["domain"] == (str(controller_Y.domain)+str(domains[pos+1] if pos+1<len(domains) else "")):
+            #print("*i",i)
             links_X[i]["weight"] = links_Y[i]["weight"]
 
     #the count of desync time slots is updated according to the X and Y sincronization
@@ -110,8 +133,9 @@ class Network(object):
 
 
 class Controller(object):
-    def __init__(self, domain):
+    def __init__(self, domain,interdomain=""):
         self.domain = domain
+        self.interdomain = interdomain
         self.network = Network(tp.get_topo("multidomain_topo"))
         self.desync_list = [0,0,0,0]
 
@@ -134,8 +158,8 @@ class Simulation:
         self.horario = 0
         self.run_till = -1
         self.network = Network(tp.get_topo("multidomain_topo"))
-        self.controllers = [Controller("A"),Controller("B"),Controller("C"),Controller("D"),Controller("E")]
-        
+        self.controllers = [Controller("A","AB"),Controller("B","BC"),Controller("C","CD"),Controller("D","DE"),Controller("E")]
+        self.new_weights = []
         #metrics:
         self.APC = 0 #average path cost
         self.xtime = 0                    
@@ -220,6 +244,7 @@ class Simulation:
                 next_event.function(self,next_event)
 
             else:
+
                 return get_state(self.controllers[0]) 
 
                
@@ -229,7 +254,7 @@ class Simulation:
         if self.eventos[0].tipo=="sync":
             #print("#evento sync")
         
-            state = self.eventos[0].function(self,self.eventos[0],action)
+            self.eventos[0].function(self,self.eventos[0],action)
             self.horario = self.eventos[0].inicio
             self.eventos.pop(0)
 
@@ -249,12 +274,21 @@ class Simulation:
 
 
 
+def get_src_dst():
+    #returns a list of lists, each list containing a src-dst pair with its arrival rate, ex: [[src,dst,arrival_rate],[],..[]]
+    src_dst_list = []
+    for src in range(4):
+        for j in range(10):
+            dst = random.randint(4,23)
+            arrival_rate = random.randint(1,6)
+            src_dst_list.append([src,dst,arrival_rate])
+    return src_dst_list
+
 def func_update_weights(sim, evt): #modify weights in links according to a distribution
     
     print("change_weights function")
     update_weights(sim.controllers,sim.network)
     sim.add_event(sim.create_event(tipo="weights_change",inicio=sim.horario+WEIGHTS_CHANGE_TIME, extra={}, f=func_update_weights))
-
 
 
 def func_synchronize(sim, evt,action):
@@ -266,8 +300,9 @@ def func_synchronize(sim, evt,action):
     
     evt = sim.create_event(tipo="sync",inicio=sim.horario+SYNC_TIME, extra={}, f=func_synchronize)    
     sim.add_event(evt)
-    return [0,0,12,0]
-  
+
+
+
 def init_sim(sim):
     evt = sim.create_event(tipo="weights_change",inicio=sim.horario+WEIGHTS_CHANGE_TIME,extra={},f=func_update_weights)
     sim.add_event(evt)
@@ -298,5 +333,19 @@ def step(action):
 
 
 
-
-
+sim = Simulation()
+sim.set_run_till(60)
+print(sim.network.topology.graph["links"])
+print()
+print(sim.controllers[0].network.topology.graph["links"])
+print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
+update_weights(sim.controllers,sim.network)
+print(sim.network.topology.graph["links"])
+print()
+print(sim.controllers[0].network.topology.graph["links"])
+print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
+sync(sim.controllers[0],sim.controllers[1])
+print(sim.network.topology.graph["links"])
+print()
+print(sim.controllers[0].network.topology.graph["links"])
+print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
