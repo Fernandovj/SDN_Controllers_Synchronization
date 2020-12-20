@@ -5,9 +5,10 @@ import gym
 import numpy as np 
 import sdnc_sync_env 
 #from ExpectedSarsaAgent import ExpectedSarsaAgent 
-#from QLearningAgent import QLearningAgent 
+from QLearningAgent import QLearningAgent 
 #from SarsaAgent import SarsaAgent 
 from matplotlib import pyplot as plt 
+import time
 
 # Using the gym library to create the environment 
 #env = gym.make('CliffWalking-v0') 
@@ -15,7 +16,7 @@ env = sdnc_sync_env
 
 # Defining all the required parameters 
 epsilon = 0.1
-total_episodes = 3
+total_episodes = 100
 max_steps = 100
 alpha = 0.5
 gamma = 1
@@ -31,13 +32,26 @@ totalReward = {
 	'ExpectedSarsaAgent': [] 
 } 
 
+APC = {
+	'silly':[], 
+	'SarsaAgent': [], 
+	'QLearningAgent': [], 
+	'ExpectedSarsaAgent': [] 
+} 
+
+
 # Defining all the three agents 
 #expectedSarsaAgent = ExpectedSarsaAgent( 
 #	epsilon, alpha, gamma, env.observation_space.n, 
 #	env.action_space.n, env.action_space) 
+
+qLearningAgent = QLearningAgent( 
+	epsilon, alpha, gamma, env.n_state_space, 
+	len(env.action_space), env.action_space)
+
 #qLearningAgent = QLearningAgent( 
-#	epsilon, alpha, gamma, env.observation_space.n, 
-#	env.action_space.n, env.action_space) 
+#    epsilon, alpha, gamma, env.observation_space.n,  
+#    env.action_space.n, env.action_space)  
 #sarsaAgent = SarsaAgent( 
 #	epsilon, alpha, gamma, env.observation_space.n, 
 #	env.action_space.n, env.action_space) 
@@ -45,48 +59,54 @@ totalReward = {
 # Now we run all the episodes and calculate the reward obtained by 
 # each agent at the end of the episode 
 
-print("action_space:",env.action_space)
-print("state_space size:",env.n_state_space)
+#print("action_space:",env.action_space)
+#print("state_space size:",env.n_state_space)
+agent = qLearningAgent
 
-for _ in range(total_episodes): 
+start = time.time()
+
+for e in range(total_episodes): 
 	# Initialize the necesary parameters before 
 	# the start of the episode 
 	t = 0
 	state1 = env.reset() 
 	print("first_state:",state1)
-	#action1 = agent.choose_action(state1)
-	action1 = random.choice(env.action_space) 
+	action1 = agent.choose_action(state1)
+	print("action1",action1)
+	#action1 = random.choice(env.action_space) 
 	episodeReward = 0
+	episodeAPCs = []
 	while t < max_steps: 
 
 	# 	# Getting the next state, reward, and other parameters 
-
 		state2, reward, done, info = env.step(action1)
-		print("t:",t+1,"next_state:",state2,"reward:",round(reward))
+		print("Ep",e,"t:",t+1,"next_state:",state2,"reward:",round(reward))
 	# 	# Choosing the next action 
-	# 	action2 = agent.choose_action(state2) 
-		action2 = random.choice(env.action_space)
+		action2 = agent.choose_action(state2) 
+		#action2 = random.choice(env.action_space)
 		
 	# 	# Learning the Q-value 
-	 	#agent.update(state1, state2, reward, action1, action2)
+		agent.update(state1, state2, reward, action1, action2)
 		state1 = state2
 		action1 = action2 
 		
 	# 	# Updating the respective vaLues 
 		t += 1
 		episodeReward += reward 
+		#episodeAPCs.append(info["APC"])
 		
 	# 	# If at the end of learning process 
 		if done:
 			break
 
-
-
 	# Append the sum of reward at the end of the episode 
-	#totalReward[type(agent).__name__].append(episodeReward)
-	totalReward["silly"].append(round(episodeReward,2)) 
+	totalReward[type(agent).__name__].append(episodeReward)
+	#totalReward["silly"].append(round(episodeReward,2)) 
+	#APC["silly"].append(episodeAPCs) 
 #env.close() 
 
+end = time.time()
+print("total time: " + str(end-start))
 
 # Calculate the mean of sum of returns for each episode 
 #meanReturn = { 
@@ -100,3 +120,9 @@ for _ in range(total_episodes):
 #print(f"Q-Learning Average Sum of Return: {meanReturn['Q-Learning-Agent']}") 
 #print(f"Expected Sarsa Average Sum of Return: {meanReturn['Expected-SARSA-Agent']}") 
 print(totalReward)
+#print(APC)
+
+
+#plt.plot(totalReward["silly"])
+plt.plot(totalReward[type(agent).__name__])
+plt.show()
