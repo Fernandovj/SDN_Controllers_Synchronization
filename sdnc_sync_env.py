@@ -73,7 +73,7 @@ def get_reward(controller,real_net):
             #print("dif:",abs(path_cost-path_cost_A))
     #print(np.mean(path_cost_list))
     #return np.mean(path_cost_list)
-    return np.mean(difference)
+    return np.mean(difference), np.mean(path_cost_list)
     
 #def get_new_weights():
     #This function generates new weights for the links according to a uniform distribution 
@@ -254,7 +254,8 @@ class Simulation:
                 #the count of desync time slots is carried out
                 for j in range(len(self.controllers)):
                     for i in range(len(self.controllers[j].desync_list)):
-                        self.controllers[j].desync_list[i] += 1
+                        if self.controllers[j].desync_list[i] != 11:
+                            self.controllers[j].desync_list[i] += 1
                 return get_state(self.controllers[0]) 
 
                
@@ -281,7 +282,8 @@ class Simulation:
                 #the count of desync time slots is carried out
                 for j in range(len(self.controllers)):
                     for i in range(len(self.controllers[j].desync_list)):
-                        self.controllers[j].desync_list[i] += 1
+                        if self.controllers[j].desync_list[i] != 11:
+                            self.controllers[j].desync_list[i] += 1
                 return get_state(self.controllers[0])
 
 
@@ -338,10 +340,10 @@ def reset():
 def step(action):
     global sim
     next_state = sim.step(action)
-    reward = get_reward(sim.controllers[0],sim.network)
-    done = True if (sim.horario>=sim.run_till) or (10 in sim.controllers[0].desync_list) else False
+    reward, APC = get_reward(sim.controllers[0],sim.network)
+    done = True if (sim.horario>=sim.run_till) else False # or (10 in sim.controllers[0].desync_list) else False
     print("hora:",sim.horario)
-    APC = reward # ****** cambiar
+    
     info = {"APC":APC}
     return next_state, reward, done, info
 
