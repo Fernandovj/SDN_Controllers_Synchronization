@@ -7,19 +7,20 @@ import topologies as tp
 from networkx import json_graph
 
 WEIGHTS_CHANGE_TIME = 1
-SYNC_TIME = 2
+SYNC_TIME = 1
 #arrival_rates = [32, 64, 18, 51, 32, 27, 27, 56, 74, 30, 67, 61, 52, 78, 53, 80, 80, 14, 22, 34, 15, 38, 19, 73, 57, 68, 70, 79, 70, 44, 36, 34, 77]
 arrival_rates = [32, 64, 18, 51, 34, 56, 94, 93, 94, 90, 97, 91, 92, 98, 53, 80, 80, 14, 22, 34, 15, 38, 19, 73, 57, 68, 70, 79, 70, 44, 36, 34, 77]
 action_space = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]
 #each of the four variables in the state representation can take 11 values (0-10)
-n_state_space = 11**4
+max_tslots = 60
+n_state_space = max_tslots**4
 
 def to_index(state):
     '''
     returns state index from a given state
     '''
 
-    index = state[0]*11*11*11 + state[1]*11*11 + state[2]*11 + state[3]
+    index = state[0]*max_tslots*max_tslots*max_tslots + state[1]*max_tslots*max_tslots + state[2]*max_tslots + state[3]
 
     return int(index)
 
@@ -73,16 +74,17 @@ def get_reward(controller,real_net):
             #print("dif:",abs(path_cost-path_cost_A))
     #print(np.mean(path_cost_list))
     #return np.mean(path_cost_list)
-    return np.mean(difference), np.mean(path_cost_list)
+    return -np.mean(difference), np.mean(path_cost_list)
     
-#def get_new_weights():
-    #This function generates new weights for the links according to a uniform distribution 
-#    new_weights = []
-#    for link_index in range(33):
-#        new_weight = random.randint(0,100) 
-        #print(link_index,new_weight)
-#        new_weights.append(new_weight)
-#    return new_weights
+# def get_new_weights():
+#     #This function generates new weights for the links according to a uniform distribution 
+#     new_weights = []
+#     for link_index in range(33):
+#         new_weight = random.randint(0,100) 
+#         print(link_index,new_weight)
+#         new_weights.append(new_weight)
+
+#     return new_weights
 
 def get_new_weights():
     #This function generates new weights for the links according to a poisson distribution 
@@ -251,10 +253,11 @@ class Simulation:
                 next_event.function(self,next_event)
 
             else:
+                update_weights(self.controllers,self.network)
                 #the count of desync time slots is carried out
                 for j in range(len(self.controllers)):
                     for i in range(len(self.controllers[j].desync_list)):
-                        if self.controllers[j].desync_list[i] != 11:
+                        if self.controllers[j].desync_list[i] < max_tslots-1:
                             self.controllers[j].desync_list[i] += 1
                 return get_state(self.controllers[0]) 
 
@@ -279,10 +282,11 @@ class Simulation:
                 next_event.function(self,next_event)
 
             else:
+                update_weights(self.controllers,self.network)
                 #the count of desync time slots is carried out
                 for j in range(len(self.controllers)):
                     for i in range(len(self.controllers[j].desync_list)):
-                        if self.controllers[j].desync_list[i] != 11:
+                        if self.controllers[j].desync_list[i] < max_tslots-1:
                             self.controllers[j].desync_list[i] += 1
                 return get_state(self.controllers[0])
 
@@ -320,8 +324,8 @@ def func_synchronize(sim, evt, action):
 
 
 def init_sim(sim):
-    evt = sim.create_event(tipo="weights_change",inicio=sim.horario+WEIGHTS_CHANGE_TIME,extra={},f=func_update_weights)
-    sim.add_event(evt)
+    #evt = sim.create_event(tipo="weights_change",inicio=sim.horario+WEIGHTS_CHANGE_TIME,extra={},f=func_update_weights)
+    #sim.add_event(evt)
 
     evt = sim.create_event(tipo="sync",inicio=sim.horario+SYNC_TIME,extra={},f=func_synchronize)
     sim.add_event(evt)
@@ -332,7 +336,7 @@ def reset():
     global sim 
     sim = None
     sim = Simulation()
-    sim.set_run_till(60)
+    sim.set_run_till(max_tslots)
     init_sim(sim) 
     first_state = sim.run()
     return first_state
@@ -342,7 +346,7 @@ def step(action):
     next_state = sim.step(action)
     reward, APC = get_reward(sim.controllers[0],sim.network)
     done = True if (sim.horario>=sim.run_till) else False # or (10 in sim.controllers[0].desync_list) else False
-    print("hora:",sim.horario)
+    #print("hora:",sim.horario)
     
     info = {"APC":APC}
     return next_state, reward, done, info
@@ -365,4 +369,4 @@ def step(action):
 # print(sim.network.topology.graph["links"])
 # print()
 # print(sim.controllers[0].network.topology.graph["links"])
-# print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])
+# print("**",sim.network.topology.graph["links"] == sim.controllers[0].network.topology.graph["links"])max_tslots
